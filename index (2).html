@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Premium - Gestión de Inventario</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Personalización de barra de desplazamiento estilo cyberpunk/oscuro */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+        
+        /* Estilos globales para SweetAlert2 en modo oscuro */
+        .swal2-popup {
+            background: #1e293b !important;
+            color: #f8fafc !important;
+            border: 1px solid #334155 !important;
+        }
+        .swal2-input, .swal2-select {
+            background: #0f172a !important;
+            color: #f8fafc !important;
+            border: 1px solid #475569 !important;
+        }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-slate-200 font-sans min-h-screen selection:bg-indigo-500 selection:text-white">
+
+    <nav class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50 p-4">
+        <div class="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-xl shadow-lg shadow-indigo-500/30">
+                    <i data-lucide="wrench" class="w-6 h-6 text-white animate-pulse"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                        NEO<span class="text-indigo-500">PARTS</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 font-medium">Control de Inventario & Personal</p>
+                </div>
+            </div>
+            
+            <button onclick="exportarBackup()" class="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-900/20 transform hover:-translate-y-0.5 transition-all duration-200">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                Exportar Backup (.js)
+            </button>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 space-y-6">
+            
+            <div class="bg-slate-900/60 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 shadow-xl">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="package" class="w-5 h-5 text-indigo-400"></i>
+                        <h2 class="text-lg font-bold text-white tracking-wide">Stock General de Repuestos</h2>
+                    </div>
+                    <button onclick="abrirFormularioRepuesto()" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl shadow-md shadow-indigo-500/10 transform hover:scale-[1.02] transition-all">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        Nuevo Repuesto
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto max-h-[440px] border border-slate-800 rounded-xl bg-slate-950/40">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-slate-900 sticky top-0 border-b border-slate-800 z-10 text-slate-400 font-semibold">
+                            <tr>
+                                <th class="p-3.5">Nombre del Repuesto</th>
+                                <th class="p-3.5">Categoría</th>
+                                <th class="p-3.5 text-center">Stock</th>
+                                <th class="p-3.5 text-right">Precio Unitario</th>
+                                <th class="p-3.5 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaRepuestos" class="divide-y divide-slate-800/50">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="activity" class="w-5 h-5 text-amber-400"></i>
+                    <h2 class="text-md font-bold text-white tracking-wide">Historial de Control y Accesorios</h2>
+                </div>
+                <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 h-36 overflow-y-auto font-mono text-xs text-slate-400 space-y-2" id="listaHistorial">
+                    </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="bg-slate-900/60 border border-slate-800/80 backdrop-blur-md rounded-2xl p-6 shadow-xl h-fit">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="clipboard-check" class="w-5 h-5 text-purple-400"></i>
+                        <h2 class="text-lg font-bold text-white tracking-wide">Asistencias Diario</h2>
+                    </div>
+                    <button onclick="abrirFormularioAsistencia()" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-purple-400 hover:text-purple-300 font-medium text-xs px-3 py-2 rounded-xl border border-slate-700/60 transition-all">
+                        <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                        Registrar
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/40">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Personal / Colaborador</th>
+                                <th class="p-3 text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaAsistencias" class="divide-y divide-slate-800/50">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // 1. Data Base con los 30 Registros solicitados
+        let repuestos = [
+            { id: 1, nombre: "Pastillas de freno delanteras", categoria: "Auto - Frenos", stock: 45, precio: 35.00 },
+            { id: 2, nombre: "Filtro de aceite sintético", categoria: "Auto - Motor", stock: 120, precio: 12.50 },
+            { id: 3, nombre: "Bujía de iridio", categoria: "Moto - Encendido", stock: 80, precio: 8.99 },
+            { id: 4, nombre: "Kit de arrastre (Cadena y piñones)", categoria: "Moto - Transmisión", stock: 25, precio: 45.00 },
+            { id: 5, nombre: "Amortiguador trasero", categoria: "Auto - Suspensión", stock: 14, precio: 85.00 },
+            { id: 6, nombre: "Batería 12V 75Ah", categoria: "Auto - Eléctrico", stock: 18, precio: 110.00 },
+            { id: 7, nombre: "Batería para Scooter 12V 7Ah", categoria: "Moto - Eléctrico", stock: 30, precio: 32.00 },
+            { id: 8, nombre: "Disco de freno ventilado", categoria: "Auto - Frenos", stock: 22, precio: 65.00 },
+            { id: 9, nombre: "Neumático 195/65 R15", categoria: "Auto - Llantas", stock: 40, precio: 75.00 },
+            { id: 10, nombre: "Neumático trasero 130/70-17", categoria: "Moto - Llantas", stock: 15, precio: 55.00 },
+            { id: 11, nombre: "Correa de distribución", categoria: "Auto - Motor", stock: 28, precio: 40.00 },
+            { id: 12, nombre: "Aceite de motor 4T 10W-40 (1L)", categoria: "Moto - Lubricantes", stock: 150, precio: 11.50 },
+            { id: 13, nombre: "Filtro de aire de alto flujo", categoria: "Auto - Motor", stock: 35, precio: 28.00 },
+            { id: 14, nombre: "Manecilla de freno de aluminio", categoria: "Moto - Chasis/Mandos", stock: 50, precio: 15.00 },
+            { id: 15, nombre: "Kit de embrague completo", categoria: "Auto - Transmisión", stock: 10, precio: 180.00 },
+            { id: 16, nombre: "Faros delanteros LED (Par)", categoria: "Auto - Iluminación", stock: 12, precio: 140.00 },
+            { id: 17, nombre: "Direccionales LED universales", categoria: "Moto - Iluminación", stock: 60, precio: 18.50 },
+            { id: 18, nombre: "Radiador de agua", categoria: "Auto - Refrigeración", stock: 8, precio: 95.00 },
+            { id: 19, nombre: "Bomba de gasolina de alta presión", categoria: "Auto - Combustible", stock: 16, precio: 120.00 },
+            { id: 20, nombre: "Carburador de 24mm", categoria: "Moto - Combustible", stock: 20, precio: 45.00 },
+            { id: 21, nombre: "Sensor MAP", categoria: "Auto - Electrónica", stock: 25, precio: 50.00 },
+            { id: 22, nombre: "Cable de acelerador", categoria: "Moto - Chasis/Mandos", stock: 70, precio: 6.00 },
+            { id: 23, nombre: "Alternador 90A", categoria: "Auto - Eléctrico", stock: 7, precio: 135.00 },
+            { id: 24, nombre: "Espejo retrovisor deportivo", categoria: "Moto - Accesorios", stock: 40, precio: 22.00 },
+            { id: 25, font: "", nombre: "Terminal de dirección", categoria: "Auto - Dirección", stock: 32, precio: 24.00 },
+            { id: 26, nombre: "Empaque de culata", categoria: "Auto - Motor", stock: 19, precio: 30.00 },
+            { id: 27, nombre: "Pastillas de freno traseras", categoria: "Moto - Frenos", stock: 85, precio: 14.00 },
+            { id: 28, nombre: "Líquido de frenos DOT 4 (500ml)", categoria: "Mixto - Fluidos", stock: 90, precio: 8.50 },
+            { id: 29, nombre: "Amortiguador delantero invertido", categoria: "Moto - Suspensión", stock: 6, precio: 160.00 },
+            { id: 30, nombre: "Parabrisas frontal", categoria: "Auto - Carrocería", stock: 5, precio: 115.00 }
+        ];
+
+        let asistencias = [
+            { nombre: "Carlos Mendoza", estado: "Presente" },
+            { nombre: "Sofía Martínez", estado: "Presente" }
+        ];
+        let historial = ["⚙️ Sistema inicializado de forma segura."];
+
+        // RENDERIZAR TABLA DE REPUESTOS
+        function renderRepuestos() {
+            const tbody = document.getElementById('tablaRepuestos');
+            tbody.innerHTML = '';
+            repuestos.forEach(item => {
+                const stockAlerta = item.stock < 12;
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="p-3.5 font-semibold text-white">${item.nombre}</td>
+                        <td class="p-3.5 text-slate-400"><span class="bg-slate-800 text-xs px-2 py-1 rounded-md border border-slate-700/50">${item.categoria}</span></td>
+                        <td class="p-3.5 text-center">
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${stockAlerta ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'}">
+                                ${item.stock} u.
+                            </span>
+                        </td>
+                        <td class="p-3.5 text-right font-mono font-bold text-emerald-400">$${item.precio.toFixed(2)}</td>
+                        <td class="p-3.5 text-center">
+                            <div class="flex items-center justify-center gap-3">
+                                <button onclick="abrirFormularioRepuesto(${item.id})" class="text-indigo-400 hover:text-indigo-300 font-medium transition flex items-center gap-0.5"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i>Editar</button>
+                                <button onclick="eliminarRepuesto(${item.id})" class="text-rose-400 hover:text-rose-300 font-medium transition flex items-center gap-0.5"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Borrar</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            renderHistorial();
+            lucide.createIcons(); // Refrescar los iconos dinámicos
+        }
+
+        // RENDERIZAR ASISTENCIAS
+        function renderAsistencias() {
+            const tbody = document.getElementById('tablaAsistencias');
+            if (asistencias.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="2" class="p-4 text-center text-slate-500">Sin asistencias grabadas.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = asistencias.map(a => `
+                <tr class="hover:bg-slate-900/40 transition-colors">
+                    <td class="p-3 font-medium text-slate-300">${a.nombre}</td>
+                    <td class="p-3 text-center">
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold tracking-wide ${a.estado === 'Presente' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
+                            ${a.estado}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // RENDERIZAR HISTORIAL
+        function renderHistorial() {
+            const contenedor = document.getElementById('listaHistorial');
+            contenedor.innerHTML = historial.map(h => `<div class="flex items-center gap-1.5 border-b border-slate-900/60 pb-1"><span class="text-indigo-500">❯</span> ${h}</div>`).reverse().join('');
+        }
+
+        // CONTROLADOR MODAL FORMULARIO (CREAR O EDITAR)
+        async function abrirFormularioRepuesto(id = null) {
+            const item = id ? repuestos.find(r => r.id === id) : { nombre: '', categoria: '', stock: '', precio: '' };
+            
+            const { value: formValues } = await Swal.fire({
+                title: id ? '✏️ Modificar Repuesto' : '✨ Agregar al Inventario',
+                html: `
+                    <div style="text-align: left; font-size: 13px; color: #94a3b8; margin-bottom: 2px; padding-left: 25px;">Nombre del Accesorio / Repuesto</div>
+                    <input id="swal-nombre" class="swal2-input !mt-1" value="${item.nombre}">
+                    
+                    <div style="text-align: left; font-size: 13px; color: #94a3b8; margin-top: 10px; margin-bottom: 2px; padding-left: 25px;">Categoría del componente</div>
+                    <input id="swal-cat" class="swal2-input !mt-1" placeholder="Ej. Auto - Frenos" value="${item.categoria}">
+                    
+                    <div style="text-align: left; font-size: 13px; color: #94a3b8; margin-top: 10px; margin-bottom: 2px; padding-left: 25px;">Unidades Existentes (Stock)</div>
+                    <input id="swal-stock" type="number" class="swal2-input !mt-1" value="${item.stock}">
+                    
+                    <div style="text-align: left; font-size: 13px; color: #94a3b8; margin-top: 10px; margin-bottom: 2px; padding-left: 25px;">Precio Base ($ USD)</div>
+                    <input id="swal-precio" type="number" step="0.01" class="swal2-input !mt-1" value="${item.precio}">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar Cambios',
+                confirmButtonColor: '#4f46e5',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    const nombre = document.getElementById('swal-nombre').value.trim();
+                    const categoria = document.getElementById('swal-cat').value.trim();
+                    const stock = parseInt(document.getElementById('swal-stock').value);
+                    const precio = parseFloat(document.getElementById('swal-precio').value);
+
+                    if (!nombre || !categoria || isNaN(stock) || isNaN(precio)) {
+                        Swal.showValidationMessage('Todos los campos son obligatorios.');
+                        return false;
+                    }
+                    return { nombre, categoria, stock, precio };
+                }
+            });
+
+            if (formValues) {
+                if (id) {
+                    const index = repuestos.findIndex(r => r.id === id);
+                    repuestos[index] = { id, ...formValues };
+                    historial.push(`Actualizado: [ID ${id}] ${formValues.nombre}`);
+                    Swal.fire({ icon: 'success', title: '¡Registro guardado!', showConfirmButton: false, timer: 1500 });
+                } else {
+                    const nuevoId = repuestos.length > 0 ? Math.max(...repuestos.map(r => r.id)) + 1 : 1;
+                    repuestos.push({ id: nuevoId, ...formValues });
+                    historial.push(`Creado: Nuevo ítem asignado [${formValues.nombre}]`);
+                    Swal.fire({ icon: 'success', title: '¡Añadido con éxito!', showConfirmButton: false, timer: 1500 });
+                }
+                renderRepuestos();
+            }
+        }
+
+        // CONTROLADOR ELIMINAR REGISTRO
+        function eliminarRepuesto(id) {
+            const item = repuestos.find(r => r.id === id);
+            Swal.fire({
+                title: '¿Confirmar eliminación?',
+                text: `El elemento "${item.nombre}" será removido del almacén.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#475569',
+                confirmButtonText: 'Sí, remover',
+                cancelButtonText: 'Abortar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    repuestos = repuestos.filter(r => r.id !== id);
+                    historial.push(`Removido stock de: "${item.nombre}"`);
+                    renderRepuestos();
+                    Swal.fire('Eliminado', 'El ítem ha sido borrado.', 'success');
+                }
+            });
+        }
+
+        // GESTION DE REGISTRO DE ASISTENCIA
+        async function abrirFormularioAsistencia() {
+            const { value: formValues } = await Swal.fire({
+                title: '👤 Control de Asistencia',
+                html: `
+                    <div style="text-align: left; font-size: 13px; color: #94a3b8; margin-bottom: 2px; padding-left: 25px;">Nombre Completo del Operador</div>
+                    <input id="swal-empleado" class="swal2-input !mt-1">
+                    <div style="text-align: left; font-size: 13px; color: #94a3b8; margin-top:10px; margin-bottom: 2px; padding-left: 25px;">Estado de ingreso</div>
+                    <select id="swal-estado" class="swal2-input w-[72%] !mt-1">
+                        <option value="Presente">🟢 Presente</option>
+                        <option value="Ausente">🔴 Ausente</option>
+                    </select>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'Grabar',
+                preConfirm: () => {
+                    const nombre = document.getElementById('swal-empleado').value.trim();
+                    const estado = document.getElementById('swal-estado').value;
+                    if(!nombre) {
+                        Swal.showValidationMessage('Asigna el nombre del colaborador');
+                        return false;
+                    }
+                    return { nombre, estado };
+                }
+            });
+
+            if(formValues) {
+                asistencias.push(formValues);
+                renderAsistencias();
+                Swal.fire({ icon: 'success', title: 'Asistencia grabada', showConfirmButton: false, timer: 1200 });
+            }
+        }
+
+        // DESCARGAR BACKUP FORMATO DATA .JS
+        function exportarBackup() {
+            const dataDump = `/** * NEO-PARTS BACKUP ENGINE SYSTEM
+ * Generado de forma automática: ${new Date().toLocaleString()}
+ */
+
+const BACKUP_INVENTARIO = ${JSON.stringify(repuestos, null, 2)};
+
+const BACKUP_ASISTENCIAS = ${JSON.stringify(asistencias, null, 2)};
+
+const BACKUP_LOG_HISTORIAL = ${JSON.stringify(historial, null, 2)};
+
+console.log("⚡ [NeoParts System] Datos restaurados correctamente desde el módulo de respaldo.");
+`;
+            const blob = new Blob([dataDump], { type: "application/javascript" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `backup_sistema_${new Date().toISOString().slice(0,10)}.js`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        // Inicialización de Tableros
+        renderRepuestos();
+        renderAsistencias();
+        lucide.createIcons();
+    </script>
+</body>
+</html>
